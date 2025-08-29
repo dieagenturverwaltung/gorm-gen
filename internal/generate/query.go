@@ -58,10 +58,16 @@ func (b *QueryStructMeta) parseStruct(st interface{}) error {
 		fp = fps
 	}
 	for _, f := range stmt.Schema.Fields {
+		jsonTagRaw := f.Tag.Get(field.TagKeyJson)
+		jsonTag := strings.Split(jsonTagRaw, ",")[0]
+		if jsonTag == "-" {
+			jsonTag = ""
+		}
 		b.appendOrUpdateField(&model.Field{
 			Name:          f.Name,
 			Type:          b.getFieldRealType(f.FieldType),
 			ColumnName:    f.DBName,
+			Tag:           map[string]string{field.TagKeyJson: jsonTag},
 			CustomGenType: fp.GetFieldGenType(f),
 		})
 	}
