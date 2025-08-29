@@ -8,7 +8,7 @@ const (
 		{{.QueryStructName}}Do
 		` + fields + `
 	}
-	` + tableMethod + asMethond + updateFieldMethod + getFieldMethod + fillFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
+	` + tableMethod + asMethond + updateFieldMethod + getFieldMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
 
 	// TableQueryStructWithContext table query struct with context
 	TableQueryStructWithContext = createMethod + `
@@ -27,7 +27,7 @@ const (
 
 	func ({{.S}} {{.QueryStructName}}) Columns(cols ...field.Expr) gen.Columns { return {{.S}}.{{.QueryStructName}}Do.Columns(cols...) }
 
-	` + getFieldMethod + fillFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
+	` + getFieldMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
 
 	// TableQueryIface table query interface
 	TableQueryIface = defineDoInterface
@@ -141,6 +141,18 @@ func ({{.S}} *{{.QueryStructName}}) fillFieldMap() {
 		{{- if .ColumnName -}}{{$.S}}.fieldMap["{{.ColumnName}}"] = {{$.S}}.{{.Name}}{{- end -}}
 	{{end}}
 	{{end -}}
+}
+`
+
+	jsonFieldMapMethod = `
+func ({{.S}} *{{.QueryStructName}}) JsonFieldMap() map[string]field.Expr {
+	fieldMap :=  make(map[string]field.Expr, {{len .Fields}})
+	{{range .Fields -}}
+	{{if not .IsRelation -}}
+		{{- if (index .Tag "json") -}}fieldMap["{{index .Tag "json"}}"] = {{$.S}}.{{.Name}}{{- end -}}
+	{{end}}
+	{{end -}}
+	return fieldMap
 }
 `
 
