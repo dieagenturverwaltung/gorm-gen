@@ -8,7 +8,7 @@ const (
 		{{.QueryStructName}}Do
 		` + fields + `
 	}
-	` + tableMethod + asMethond + updateFieldMethod + getFieldMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
+	` + tableMethod + asMethond + updateFieldMethod + getFieldMethod + getFieldByJsonMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
 
 	// TableQueryStructWithContext table query struct with context
 	TableQueryStructWithContext = createMethod + `
@@ -27,7 +27,7 @@ const (
 
 	func ({{.S}} {{.QueryStructName}}) Columns(cols ...field.Expr) gen.Columns { return {{.S}}.{{.QueryStructName}}Do.Columns(cols...) }
 
-	` + getFieldMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
+	` + getFieldMethod + getFieldByJsonMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
 
 	// TableQueryIface table query interface
 	TableQueryIface = defineDoInterface
@@ -120,6 +120,17 @@ func ({{.S}} {{.QueryStructName}}) replaceDB(db *gorm.DB) {{.QueryStructName}} {
 	getFieldMethod = `
 func ({{.S}} *{{.QueryStructName}}) GetFieldByName(fieldName string) (field.OrderExpr, bool) {
 	_f, ok := {{.S}}.fieldMap[fieldName]
+	if !ok || _f == nil {
+		return nil, false
+	}
+	_oe,ok := _f.(field.OrderExpr)
+	return _oe,ok
+}
+`
+
+	getFieldByJsonMethod = `
+func ({{.S}} *{{.QueryStructName}}) GetFieldByJson(json string) (field.OrderExpr, bool) {
+	_f, ok := {{.S}}.JsonFieldMap()[json]
 	if !ok || _f == nil {
 		return nil, false
 	}
