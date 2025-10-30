@@ -27,6 +27,16 @@ func ({{.S}} {{.TargetStruct}}Do){{.FuncSign}}{
 
 `
 
+// CRUDGenericMethod generic CRUD method
+const CRUDGenericMethod = `
+func ({{.S}} *{{.QueryStructName}}Do) withDO(do gen.Dao) {{.ReturnObject}} {
+	_r := &{{.QueryStructName}}Do{}
+	_r.DO = *do.(*gen.DO)
+	_r.IWithDO = gen.WithDOFunc[{{.ReturnObject}}]({{.S}}.withDO)
+	return _r
+}
+`
+
 // CRUDMethod CRUD method
 const CRUDMethod = `
 func ({{.S}} {{.QueryStructName}}Do) Debug() {{.ReturnObject}} {
@@ -265,14 +275,14 @@ func ({{.S}} *{{.QueryStructName}}Do) withDO(do gen.Dao) (*{{.QueryStructName}}D
 const CRUDMethodTest = `
 func init() {
 	InitializeDB()
-	err := db.AutoMigrate(&{{.StructInfo.Package}}.{{.ModelStructName}}{})
+	err := _gen_test_db.AutoMigrate(&{{.StructInfo.Package}}.{{.ModelStructName}}{})
 	if err != nil{
 		fmt.Printf("Error: AutoMigrate(&{{.StructInfo.Package}}.{{.ModelStructName}}{}) fail: %s", err)
 	}
 }
 
 func Test_{{.QueryStructName}}Query(t *testing.T) {
-	{{.QueryStructName}} := new{{.ModelStructName}}(db)
+	{{.QueryStructName}} := new{{.ModelStructName}}(_gen_test_db)
 	{{.QueryStructName}} = *{{.QueryStructName}}.As({{.QueryStructName}}.TableName())
 	_do := {{.QueryStructName}}.WithContext(context.Background()).Debug()
 
@@ -416,13 +426,13 @@ const DIYMethodTest = `
 var {{.OriginStruct.Type}}{{.MethodName}}TestCase = []TestCase{}
 
 func Test_{{.TargetStruct}}_{{.MethodName}}(t *testing.T) {
-	{{.TargetStruct}} := new{{.OriginStruct.Type}}(db)
+	{{.TargetStruct}} := new{{.OriginStruct.Type}}(_gen_test_db)
 	do := {{.TargetStruct}}.WithContext(context.Background()).Debug()
 
 	for i, tt := range {{.OriginStruct.Type}}{{.MethodName}}TestCase {
 		t.Run("{{.MethodName}}_"+strconv.Itoa(i), func(t *testing.T) {
-			{{.GetTestResultParamInTmpl}} := do.{{.MethodName}}({{.GetTestParamInTmpl}})
-			{{.GetAssertInTmpl}}
+			{{if .GetTestResultParamInTmpl}}{{.GetTestResultParamInTmpl}} := do.{{.MethodName}}({{.GetTestParamInTmpl}})
+			{{.GetAssertInTmpl}}{{else}}do.{{.MethodName}}({{.GetTestParamInTmpl}}){{end}}
 		})
 	}
 }

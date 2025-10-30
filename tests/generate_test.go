@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	gen "github.com/dieagenturverwaltung/gorm-gen"
 	"github.com/dieagenturverwaltung/gorm-gen/field"
 
 	"github.com/dieagenturverwaltung/gorm-gen/tests/diy_method"
@@ -20,6 +21,27 @@ const (
 )
 
 var _ = os.Setenv("GORM_DIALECT", "mysql")
+
+type User struct {
+	Id       string    `gorm:"primaryKey"`
+	Posts    []Post    `gorm:"foreignKey:AuthorId"`
+	Comments []Comment `gorm:"foreignKey:AuthorId"`
+}
+
+type Post struct {
+	Id       string `gorm:"primaryKey"`
+	AuthorId string
+	Author   User      `gorm:"foreignKey:Id"`
+	Comments []Comment `gorm:"foreignKey:PostId"`
+}
+
+type Comment struct {
+	Id       string `gorm:"primaryKey"`
+	PostId   string
+	Post     Post `gorm:"foreignKey:Id"`
+	AuthorId string
+	Author   User `gorm:"foreignKey:Id"`
+}
 
 var generateCase = map[string]func(dir string) *gen.Generator{
 	generateDirPrefix + "dal_1": func(dir string) *gen.Generator {
@@ -117,6 +139,72 @@ var generateCase = map[string]func(dir string) *gen.Generator{
 		g.ApplyBasic(g.GenerateModelAs("users", DB.Config.NamingStrategy.SchemaName("users"), gen.WithMethod(diy_method.TestForWithMethod{})))
 		return g
 	},
+	generateDirPrefix + "dal_7": func(dir string) *gen.Generator {
+		g := gen.NewGenerator(gen.Config{
+			OutPath: dir + "/query",
+			Mode:    gen.WithDefaultQuery | gen.WithQueryInterface,
+
+			WithUnitTest:      true,
+			FieldNullable:     true,
+			FieldCoverable:    true,
+			FieldWithIndexTag: true,
+		})
+		g.UseDB(DB)
+		g.WithJSONTagNameStrategy(func(c string) string { return "-" })
+		banks := g.GenerateModel("banks")
+		creditCards := g.GenerateModel("credit_cards")
+		customers := g.GenerateModel("customers",
+			gen.FieldRelate(field.HasOne, "Bank", banks, &field.RelateConfig{
+				JSONTag: "bank",
+				GORMTag: field.GormTag{
+					"foreignKey": []string{"BankID"},
+					"references": []string{"ID"},
+				},
+			}),
+			gen.FieldRelate(field.HasMany, "CreditCards", creditCards, &field.RelateConfig{
+				JSONTag: "credit_cards",
+				GORMTag: field.GormTag{
+					"foreignKey": []string{"CustomerRefer"},
+					"references": []string{"ID"},
+				},
+			}),
+		)
+		g.ApplyBasic(customers)
+		return g
+	},
+	generateDirPrefix + "dal_generic": func(dir string) *gen.Generator {
+		g := gen.NewGenerator(gen.Config{
+			OutPath: dir + "/query",
+			Mode:    gen.WithDefaultQuery | gen.WithGeneric,
+
+			WithUnitTest: true,
+
+			FieldNullable:     true,
+			FieldCoverable:    true,
+			FieldWithIndexTag: true,
+		})
+		g.UseDB(DB)
+		g.WithJSONTagNameStrategy(func(c string) string { return "-" })
+		g.ApplyBasic(g.GenerateModel("banks"))
+		g.ApplyInterface(func(testIF diy_method.TestIF, testFor diy_method.TestFor, method diy_method.InsertMethod, selectMethod diy_method.SelectMethod) {
+		}, g.GenerateModel("users"))
+		return g
+	},
+	generateDirPrefix + "dal_8": func(dir string) *gen.Generator {
+		g := gen.NewGenerator(gen.Config{
+			OutPath: dir + "/query",
+			Mode:    gen.WithDefaultQuery | gen.WithQueryInterface,
+
+			WithUnitTest: true,
+
+			FieldNullable:     true,
+			FieldCoverable:    true,
+			FieldWithIndexTag: true,
+		})
+		g.ApplyBasic(User{}, Post{}, Comment{})
+
+		return g
+	},
 }
 
 func TestGenerate(t *testing.T) {
@@ -160,4 +248,57 @@ func TestGenerate_expect(t *testing.T) {
 	g.UseDB(DB)
 	g.ApplyBasic(g.GenerateAllTable()...)
 	g.Execute()
+
+	g = gen.NewGenerator(gen.Config{
+		OutPath: expectDirPrefix + "dal_test_relation" + "/query",
+		Mode:    gen.WithDefaultQuery,
+	})
+	g.UseDB(DB)
+
+	banks := g.GenerateModel("banks")
+	creditCards := g.GenerateModel("credit_cards")
+	customers := g.GenerateModel("customers",
+		gen.FieldRelate(field.HasOne, "Bank", banks, &field.RelateConfig{
+			JSONTag: "bank",
+			GORMTag: field.GormTag{
+				"foreignKey": []string{"BankID"},
+				"references": []string{"ID"},
+			},
+		}),
+		gen.FieldRelate(field.HasMany, "CreditCards", creditCards, &field.RelateConfig{
+			JSONTag: "credit_cards",
+			GORMTag: field.GormTag{
+				"foreignKey": []string{"CustomerRefer"},
+				"references": []string{"ID"},
+			},
+		}),
+	)
+	g.ApplyBasic(customers, creditCards, banks)
+	g.Execute()
+}
+
+func Test_GenSkipImpl(t *testing.T) {
+	dir := ".gen/skip_impl_test"
+	os.RemoveAll(dir)
+	g := gen.NewGenerator(gen.Config{
+		OutPath: dir + "/query",
+		Mode:    gen.WithDefaultQuery | gen.WithQueryInterface,
+	})
+	g.UseDB(DB)
+	model := g.GenerateModel("users")
+	g.ApplyInterface(func(diy_method.TestSkipImpl) {}, model)
+	g.Execute()
+
+	queryFile := dir + "/query/users.gen.go"
+	content, err := os.ReadFile(queryFile)
+	if err != nil {
+		t.Fatalf("read generated file failed: %v", err)
+	}
+	str := string(content)
+	if !strings.Contains(str, "func (u userDo) NoSkipMethod(") {
+		t.Error("should generate NoSkipMethod implementation")
+	}
+	if strings.Contains(str, "func (u userDo) SkipMethod(") || strings.Contains(str, "func (u usersDo) SkipMethod(") {
+		t.Error("should not generate SkipMethod implementation for // gen:skip interface")
+	}
 }

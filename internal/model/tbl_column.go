@@ -73,6 +73,7 @@ func (c *Column) ToField(nullable, coverable, signable bool) *Field {
 		GORMTag:          c.buildGormTag(),
 		Tag:              map[string]string{field.TagKeyJson: c.jsonTagNS(c.Name())},
 		ColumnComment:    comment,
+		Column:           c,
 	}
 }
 
@@ -128,6 +129,9 @@ func (c *Column) needDefaultTag(defaultTagValue string) bool {
 	if defaultTagValue == "" {
 		return false
 	}
+	if c.ScanType() == nil {
+		return c.Name() != "created_at" && c.Name() != "updated_at" && defaultTagValue != "" && defaultTagValue != "0" && defaultTagValue != "false"
+	}
 	switch c.ScanType().Kind() {
 	case reflect.Bool:
 		return defaultTagValue != "false"
@@ -136,7 +140,7 @@ func (c *Column) needDefaultTag(defaultTagValue string) bool {
 	case reflect.String:
 		return defaultTagValue != ""
 	case reflect.Struct:
-		return strings.Trim(defaultTagValue, "'0:- ") != ""
+		return strings.Trim(defaultTagValue, "'0:-") != ""
 	}
 	return c.Name() != "created_at" && c.Name() != "updated_at"
 }

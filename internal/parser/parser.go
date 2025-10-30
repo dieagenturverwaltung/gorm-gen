@@ -88,6 +88,9 @@ func (i *InterfaceSet) Visit(n ast.Node) (w ast.Visitor) {
 						Params:     getParamList(m.Type.(*ast.FuncType).Params),
 						Result:     getParamList(m.Type.(*ast.FuncType).Results),
 					}
+					if strings.Contains(method.Doc, "gen:skip") {
+						method.SkipImpl = true
+					}
 					fixParamPackagePath(i.imports, method.Params)
 					r.Methods = append(r.Methods, method)
 				}
@@ -271,8 +274,12 @@ func (p *Param) astGetParamType(param *ast.Field) {
 	case *ast.StarExpr:
 		p.IsPointer = true
 		p.astGetEltType(v.X)
+	case *ast.IndexExpr:
+		p.astGetEltType(v.X)
+	case *ast.IndexListExpr:
+		p.astGetEltType(v.X)
 	default:
-		log.Fatalf("unknow param type: %+v", v)
+		log.Printf("Unsupported param type: %+v", v)
 	}
 }
 
@@ -296,8 +303,10 @@ func (p *Param) astGetEltType(expr ast.Expr) {
 	case *ast.ArrayType:
 		p.astGetEltType(v.Elt)
 		p.Type = "[]" + p.Type
+	case *ast.IndexExpr:
+		p.astGetEltType(v.X)
 	default:
-		log.Fatalf("unknow param type: %+v", v)
+		log.Printf("Unsupported param type: %+v", v)
 	}
 }
 

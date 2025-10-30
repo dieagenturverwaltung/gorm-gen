@@ -200,6 +200,10 @@ func BuildDIYMethod(f *parser.InterfaceSet, s *QueryStructMeta, data []*Interfac
 				if err = t.checkResult(method.Result); err != nil {
 					return
 				}
+				if method.SkipImpl {
+					checkResults = append(checkResults, t)
+					continue
+				}
 				if err = t.checkSQL(); err != nil {
 					return
 				}
@@ -224,7 +228,7 @@ func ParseStructRelationShip(name string, relationship *schema.Relationships) []
 		relationship.HasOne...),
 		relationship.HasMany...),
 		relationship.Many2Many...)
-	return pullRelationShip(name, 0, make(map[string]bool), relationships)
+	return pullRelationShip(name, 0, make(map[string][]field.Relation), relationships)
 }
 
 // GetStructNames get struct names from base structs

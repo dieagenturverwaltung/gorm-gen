@@ -41,6 +41,8 @@ type QueryStructMeta struct {
 	ModelMethods    []*parser.Method // user custom method bind to db base struct
 
 	interfaceMode bool
+
+	UseGenericMode bool // use generic mode
 }
 
 // parseStruct get all elements of struct with gorm's Parse, ignore unexported elements
@@ -63,13 +65,22 @@ func (b *QueryStructMeta) parseStruct(st interface{}) error {
 		if jsonTag == "-" {
 			jsonTag = ""
 		}
-		b.appendOrUpdateField(&model.Field{
+		gf := &model.Field{
 			Name:          f.Name,
 			Type:          b.getFieldRealType(f.FieldType),
 			ColumnName:    f.DBName,
 			Tag:           map[string]string{field.TagKeyJson: jsonTag},
 			CustomGenType: fp.GetFieldGenType(f),
-		})
+			ColumnComment: f.Comment,
+		}
+		if len(f.EmbeddedBindNames) > 1 {
+			gf.Name = strings.Join(f.EmbeddedBindNames, "")
+		}
+		if gf.ColumnComment == "" {
+			gf.ColumnComment = f.TagSettings["COMMENT"]
+		}
+		gf.MultilineComment = strings.Contains(gf.ColumnComment, "\n")
+		b.appendOrUpdateField(gf)
 	}
 
 	for _, r := range ParseStructRelationShip(stmt.Schema.Table, &stmt.Schema.Relationships) {
@@ -193,16 +204,12 @@ func (b *QueryStructMeta) ReviseDIYMethod() error {
 		}
 		method.Receiver.Package = ""
 		method.Receiver.Type = b.ModelStructName
+		b.pasreTableName(method)
 		methods = append(methods, method)
 		methodMap[method.MethodName] = true
 	}
 	if tableName == nil {
 		methods = append(methods, parser.DefaultMethodTableName(b.ModelStructName))
-	} else {
-		// e.g. return "@@table" => return TableNameUser
-		tableName.Body = strings.ReplaceAll(tableName.Body, "\"@@table\"", "TableName"+b.ModelStructName)
-		// e.g. return "t_@@table" => return "t_user"
-		tableName.Body = strings.ReplaceAll(tableName.Body, "@@table", b.TableName)
 	}
 	b.ModelMethods = methods
 
@@ -211,7 +218,16 @@ func (b *QueryStructMeta) ReviseDIYMethod() error {
 	}
 	return nil
 }
+func (b *QueryStructMeta) pasreTableName(method *parser.Method) {
+	if method == nil || method.Body == "" || !strings.Contains(method.Body, "@@table") {
+		return
+	}
+	// e.g. return "@@table" => return TableNameUser
+	method.Body = strings.ReplaceAll(method.Body, "\"@@table\"", "TableName"+b.ModelStructName)
+	// e.g. return "t_@@table" => return "t_user"
+	method.Body = strings.ReplaceAll(method.Body, "@@table", b.TableName)
 
+}
 func (b *QueryStructMeta) addMethodFromAddMethodOpt(methods ...interface{}) *QueryStructMeta {
 	for _, method := range methods {
 		modelMethods, err := parser.GetModelMethod(method)
@@ -234,6 +250,12 @@ func (b QueryStructMeta) IfaceMode(on bool) *QueryStructMeta {
 	return &b
 }
 
+// GenericMode object mode
+func (b QueryStructMeta) GenericMode(on bool) *QueryStructMeta {
+	b.UseGenericMode = on
+	return &b
+}
+
 // ReturnObject return object in generated code
 func (b *QueryStructMeta) ReturnObject() string {
 	if b.interfaceMode {
@@ -247,7 +269,7 @@ func isStructType(data reflect.Value) bool {
 		(data.Kind() == reflect.Ptr && data.Elem().Kind() == reflect.Struct)
 }
 
-func pullRelationShip(name string, depth int, cache map[string]bool, relationships []*schema.Relationship) []field.Relation {
+func pullRelationShip(name string, depth int, cache map[string][]field.Relation, relationships []*schema.Relationship) []field.Relation {
 	if overrideDepth, ok := gen_config.QueryDepthOverride[name]; ok {
 		if depth > overrideDepth {
 			return nil
@@ -255,30 +277,35 @@ func pullRelationShip(name string, depth int, cache map[string]bool, relationshi
 	} else if depth > gen_config.QueryDepth {
 		return nil
 	}
-
 	if len(relationships) == 0 {
 		return nil
 	}
 	result := make([]field.Relation, len(relationships))
-	for i, relationship := range relationships {
-		var childRelations []field.Relation
+
+	for _, relationship := range relationships {
 		varType := strings.TrimLeft(relationship.Field.FieldType.String(), "[]*")
-		if !cache[varType] {
-			newCache := make(map[string]bool, len(cache)+1)
+		if _, ok := cache[varType]; !ok {
+			newCache := make(map[string][]field.Relation, len(cache)+1)
 			for k, v := range cache {
 				newCache[k] = v
 			}
 
-			newCache[varType] = true
-			childRelations = pullRelationShip(name, depth+1, newCache, append(append(append(append(
+			newCache[varType] = []field.Relation{}
+			childRelations := pullRelationShip(name, depth+1, newCache, append(append(append(append(
 				make([]*schema.Relationship, 0, 4),
 				relationship.FieldSchema.Relationships.BelongsTo...),
 				relationship.FieldSchema.Relationships.HasOne...),
 				relationship.FieldSchema.Relationships.HasMany...),
 				relationship.FieldSchema.Relationships.Many2Many...),
 			)
+			cache[varType] = childRelations
 		}
-		result[i] = *field.NewRelationWithType(field.RelationshipType(relationship.Type), relationship.Name, varType, childRelations...)
+	}
+
+	for i, relationship := range relationships {
+		varType := strings.TrimLeft(relationship.Field.FieldType.String(), "[]*")
+		cached := cache[varType]
+		result[i] = *field.NewRelationWithType(field.RelationshipType(relationship.Type), relationship.Name, varType, cached...)
 	}
 	return result
 }

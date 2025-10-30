@@ -90,6 +90,56 @@ func TestExpr_Build(t *testing.T) {
 			Result: "GROUP_CONCAT(`id`)",
 		},
 		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", "1"),
+			Result:       "if(column1=?,column2,column3)",
+			ExpectedVars: []interface{}{"1"},
+		},
+		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", "1").Eq(p),
+			Result:       "if(column1=?,column2,column3) = ?",
+			ExpectedVars: []interface{}{"1", p},
+		},
+		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", field.NewField("", "new_id")).Eq(p),
+			Result:       "if(column1=`new_id`,column2,column3) = ?",
+			ExpectedVars: []interface{}{p},
+		},
+		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", "1").EqCol(field.NewField("", "new_id")),
+			Result:       "if(column1=?,column2,column3) = `new_id`",
+			ExpectedVars: []interface{}{"1"},
+		},
+		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", "1").EqCol(field.NewField("", "new_id").WithTable("tableB")),
+			Result:       "if(column1=?,column2,column3) = `tableB`.`new_id`",
+			ExpectedVars: []interface{}{"1"},
+		},
+		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", "1").IsNull(),
+			Result:       "if(column1=?,column2,column3) IS NULL",
+			ExpectedVars: []interface{}{"1"},
+		},
+		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", "1").GroupConcat(),
+			Result:       "GROUP_CONCAT(if(column1=?,column2,column3))",
+			ExpectedVars: []interface{}{"1"},
+		},
+		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", "1").Desc(),
+			Result:       "if(column1=?,column2,column3) DESC",
+			ExpectedVars: []interface{}{"1"},
+		},
+		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", "1").IfNull(p),
+			Result:       "IFNULL(if(column1=?,column2,column3),?)",
+			ExpectedVars: []interface{}{"1", p},
+		},
+		{
+			Expr:         field.NewUnsafeFieldRaw("if(column1=?,column2,column3)", "1").As("column4"),
+			Result:       "if(column1=?,column2,column3) AS `column4`",
+			ExpectedVars: []interface{}{"1"},
+		},
+		{
 			Expr:   field.Func.UnixTimestamp(),
 			Result: "UNIX_TIMESTAMP()",
 		},
@@ -121,7 +171,7 @@ func TestExpr_Build(t *testing.T) {
 			ExpectedVars: []interface{}{int(1)},
 		},
 		{
-			Expr:         field.NewInt("t1", "a").AddCol(field.NewInt("t2", "b").Add(1)).(field.Field).GtCol(field.NewInt("t", "c")),
+			Expr:         field.NewInt("t1", "a").AddCol(field.NewInt("t2", "b").Add(1)).GtCol(field.NewInt("t", "c")),
 			Result:       "`t1`.`a` + `t2`.`b`+? > `t`.`c`",
 			ExpectedVars: []interface{}{int(1)},
 		},
@@ -134,12 +184,8 @@ func TestExpr_Build(t *testing.T) {
 			Result: "COUNT(DISTINCT *)",
 		},
 		{
-			Expr:   field.NewAsterisk("user").Count(),
-			Result: "COUNT(`user`.*)",
-		},
-		{
-			Expr:   field.NewAsterisk("user").Distinct().Count(),
-			Result: "COUNT(DISTINCT `user`.*)",
+			Expr:   field.ALL.Count().As("num"),
+			Result: "COUNT(*) AS `num`",
 		},
 		// ======================== integer ========================
 		{
@@ -319,7 +365,7 @@ func TestExpr_Build(t *testing.T) {
 			Result:       "`name` REGEXP ?",
 		},
 		{
-			Expr:         field.NewString("", "name").NotRegxp(".*"),
+			Expr:         field.NewString("", "name").NotRegexp(".*"),
 			ExpectedVars: []interface{}{".*"},
 			Result:       "NOT `name` REGEXP ?",
 		},

@@ -7,6 +7,7 @@ import (
 
 	"github.com/dieagenturverwaltung/gorm-gen"
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

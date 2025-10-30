@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+// TODO implement unit tests for tags
+
 const (
 	TagKeyGorm = "gorm"
 	TagKeyJson = "json"
@@ -55,19 +57,31 @@ func (tag Tag) Remove(key string) Tag {
 }
 
 func (tag Tag) Build() string {
-	if tag == nil || len(tag) == 0 {
+	if len(tag) == 0 {
 		return ""
 	}
 
 	tags := make([]string, 0, len(tag))
-	for _, k := range tagKeys(tag) {
+	for _, k := range tag.keys() {
 		v := tag[k]
-		if k == "" || v == "" {
+		if k == "" {
 			continue
 		}
 		tags = append(tags, k+":\""+v+"\"")
 	}
 	return strings.Join(tags, " ")
+}
+
+func (tag Tag) keys() []string {
+	if len(tag) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(tag))
+	for k := range tag {
+		keys = append(keys, k)
+	}
+	return keySort(keys)
 }
 
 type GormTag map[string][]string
@@ -92,11 +106,12 @@ func (tag GormTag) Remove(key string) GormTag {
 }
 
 func (tag GormTag) Build() string {
-	if tag == nil || len(tag) == 0 {
+	if len(tag) == 0 {
 		return ""
 	}
+
 	tags := make([]string, 0, len(tag))
-	for _, k := range gormKeys(tag) {
+	for _, k := range tag.keys() {
 		vs := tag[k]
 		if len(vs) == 0 && k == "" {
 			continue
@@ -123,23 +138,13 @@ func (tag GormTag) Build() string {
 	return strings.Join(tags, ";")
 }
 
-func tagKeys(tag Tag) []string {
-	keys := make([]string, 0, len(tag))
+func (tag GormTag) keys() []string {
 	if len(tag) == 0 {
-		return keys
+		return nil
 	}
-	for k, _ := range tag {
-		keys = append(keys, k)
-	}
-	return keySort(keys)
-}
 
-func gormKeys(tag GormTag) []string {
 	keys := make([]string, 0, len(tag))
-	if len(tag) == 0 {
-		return keys
-	}
-	for k, _ := range tag {
+	for k := range tag {
 		keys = append(keys, k)
 	}
 	return keySort(keys)
@@ -149,6 +154,7 @@ func keySort(keys []string) []string {
 	if len(keys) == 0 {
 		return keys
 	}
+
 	sort.Slice(keys, func(i, j int) bool {
 		if tagKeyPriorities[keys[i]] == tagKeyPriorities[keys[j]] {
 			return keys[i] <= keys[j]

@@ -8,7 +8,7 @@ const (
 		{{.QueryStructName}}Do
 		` + fields + `
 	}
-	` + tableMethod + asMethond + updateFieldMethod + getFieldMethod + getFieldByJsonMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
+	` + tableMethod + asMethond + updateFieldMethod + getFieldMethod + getFieldByJsonMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship
 
 	// TableQueryStructWithContext table query struct with context
 	TableQueryStructWithContext = createMethod + `
@@ -27,17 +27,28 @@ const (
 
 	func ({{.S}} {{.QueryStructName}}) Columns(cols ...field.Expr) gen.Columns { return {{.S}}.{{.QueryStructName}}Do.Columns(cols...) }
 
-	` + getFieldMethod + getFieldByJsonMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship + defineMethodStruct
+	` + getFieldMethod + getFieldByJsonMethod + fillFieldMapMethod + jsonFieldMapMethod + cloneMethod + replaceMethod + relationship
 
 	// TableQueryIface table query interface
 	TableQueryIface = defineDoInterface
+
+	// TableGenericQueryIface table generic query interface
+	TableGenericQueryIface = defineGenericsDoInterface
+
+	//DefineGenericsMethodStruct generics do struct
+	DefineGenericsMethodStruct = `type {{.QueryStructName}}Do struct {gen.GenericsDo[I{{.ModelStructName}}Do, *{{.StructInfo.Package}}.{{.StructInfo.Type}}]}`
+
+	// DefineMethodStruct do struct
+	DefineMethodStruct = `type {{.QueryStructName}}Do struct { gen.DO }`
 )
 
 const (
 	createMethod = `
 	func new{{.ModelStructName}}(db *gorm.DB, opts ...gen.DOOption) {{.QueryStructName}} {
 		_{{.QueryStructName}} := {{.QueryStructName}}{}
-	
+		{{if .UseGenericMode}}
+		_{{.QueryStructName}}.{{.QueryStructName}}Do.IWithDO = gen.WithDOFunc[{{.ReturnObject}}](_{{.QueryStructName}}.{{.QueryStructName}}Do.withDO)
+		{{end}}
 		_{{.QueryStructName}}.{{.QueryStructName}}Do.UseDB(db,opts...)
 		_{{.QueryStructName}}.{{.QueryStructName}}Do.UseModel(&{{.StructInfo.Package}}.{{.StructInfo.Type}}{})
 	
@@ -107,13 +118,16 @@ func ({{.S}} *{{.QueryStructName}}) updateTableName(table string) *{{.QueryStruc
 
 	cloneMethod = `
 func ({{.S}} {{.QueryStructName}}) clone(db *gorm.DB) {{.QueryStructName}} {
-	{{.S}}.{{.QueryStructName}}Do.ReplaceConnPool(db.Statement.ConnPool)
+	{{.S}}.{{.QueryStructName}}Do.ReplaceConnPool(db.Statement.ConnPool){{range .Fields }}{{if .IsRelation}}
+  {{$.S}}.{{.Relation.Name}}.db = db.Session(&gorm.Session{Initialized: true})
+  {{$.S}}.{{.Relation.Name}}.db.Statement.ConnPool = db.Statement.ConnPool{{end}}{{end}}
 	return {{.S}}
 }
 `
 	replaceMethod = `
 func ({{.S}} {{.QueryStructName}}) replaceDB(db *gorm.DB) {{.QueryStructName}} {
-	{{.S}}.{{.QueryStructName}}Do.ReplaceDB(db)
+	{{.S}}.{{.QueryStructName}}Do.ReplaceDB(db){{range .Fields}}{{if .IsRelation}}
+  {{$.S}}.{{.Relation.Name}}.db = db.Session(&gorm.Session{}){{end}}{{end}}
 	return {{.S}}
 }
 `
@@ -142,7 +156,6 @@ func ({{.S}} *{{.QueryStructName}}) GetFieldByJson(json string) (field.OrderExpr
 		`{{- $relation := .Relation }}{{- $relationship := $relation.RelationshipName}}` +
 		relationStruct + relationTx +
 		`{{end}}{{end}}`
-	defineMethodStruct = `type {{.QueryStructName}}Do struct { gen.DO }`
 
 	fillFieldMapMethod = `
 func ({{.S}} *{{.QueryStructName}}) fillFieldMap() {
@@ -152,6 +165,14 @@ func ({{.S}} *{{.QueryStructName}}) fillFieldMap() {
 		{{- if .ColumnName -}}{{$.S}}.fieldMap["{{.ColumnName}}"] = {{$.S}}.{{.Name}}{{- end -}}
 	{{end}}
 	{{end -}}
+}
+`
+	defineGenericsDoInterface = `
+type I{{.ModelStructName}}Do interface {
+	gen.IGenericsDo[I{{.ModelStructName}}Do, *{{.StructInfo.Package}}.{{.StructInfo.Type}}]
+	{{range .Interfaces -}}
+	{{.FuncSign}}
+	{{end}}
 }
 `
 
@@ -224,6 +245,8 @@ type I{{.ModelStructName}}Do interface {
 	FirstOrCreate() (*{{.StructInfo.Package}}.{{.StructInfo.Type}}, error)
 	FindByPage(offset int, limit int) (result []*{{.StructInfo.Package}}.{{.StructInfo.Type}}, count int64, err error)
 	ScanByPage(result interface{}, offset int, limit int) (count int64, err error)
+	Rows() (*sql.Rows, error)
+	Row() *sql.Row
 	Scan(result interface{}) (err error)
 	Returning(value interface{}, columns ...string) I{{.ModelStructName}}Do
 	UnderlyingDB() *gorm.DB
@@ -273,6 +296,11 @@ func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}) Model(m *{{$.S
 	return &{{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx{a.db.Model(m).Association(a.Name())}
 }
 
+func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}) Unscoped() *{{$.QueryStructName}}{{$relationship}}{{$relation.Name}} {
+	a.db = a.db.Unscoped()
+	return &a
+}
+
 `
 	relationTx = `
 type {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx struct{ tx *gorm.Association }
@@ -311,6 +339,11 @@ func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Clear() erro
 
 func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Count() int64 {
 	return a.tx.Count()
+}
+
+func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Unscoped() *{{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx {
+	a.tx = a.tx.Unscoped()
+	return &a
 }
 `
 )

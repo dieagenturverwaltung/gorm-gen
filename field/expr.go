@@ -171,32 +171,32 @@ func (e expr) IsNotNull() Expr {
 	return e.setE(clause.Expr{SQL: "? IS NOT NULL", Vars: []interface{}{e.RawExpr()}})
 }
 
-func (e expr) Count() Int {
-	return Int{e.setE(clause.Expr{SQL: "COUNT(?)", Vars: []interface{}{e.RawExpr()}})}
+func (e expr) Count() Number[int] {
+	return newNumber[int](e.setE(clause.Expr{SQL: "COUNT(?)", Vars: []interface{}{e.RawExpr()}}))
 }
 
-func (e expr) Distinct() Int {
-	return Int{e.setE(clause.Expr{SQL: "DISTINCT ?", Vars: []interface{}{e.RawExpr()}})}
+func (e expr) Distinct() Number[int] {
+	return newNumber[int](e.setE(clause.Expr{SQL: "DISTINCT ?", Vars: []interface{}{e.RawExpr()}}))
 }
 
-func (e expr) Length() Int {
-	return Int{e.setE(clause.Expr{SQL: "LENGTH(?)", Vars: []interface{}{e.RawExpr()}})}
+func (e expr) Length() Number[int] {
+	return newNumber[int](e.setE(clause.Expr{SQL: "LENGTH(?)", Vars: []interface{}{e.RawExpr()}}))
 }
 
-func (e expr) Max() Float64 {
-	return Float64{e.setE(clause.Expr{SQL: "MAX(?)", Vars: []interface{}{e.RawExpr()}})}
+func (e expr) Max() Number[float64] {
+	return newNumber[float64](e.setE(clause.Expr{SQL: "MAX(?)", Vars: []interface{}{e.RawExpr()}}))
 }
 
-func (e expr) Min() Float64 {
-	return Float64{e.setE(clause.Expr{SQL: "MIN(?)", Vars: []interface{}{e.RawExpr()}})}
+func (e expr) Min() Number[float64] {
+	return newNumber[float64](e.setE(clause.Expr{SQL: "MIN(?)", Vars: []interface{}{e.RawExpr()}}))
 }
 
-func (e expr) Avg() Float64 {
-	return Float64{e.setE(clause.Expr{SQL: "AVG(?)", Vars: []interface{}{e.RawExpr()}})}
+func (e expr) Avg() Number[float64] {
+	return newNumber[float64](e.setE(clause.Expr{SQL: "AVG(?)", Vars: []interface{}{e.RawExpr()}}))
 }
 
-func (e expr) Abs() Float64 {
-	return Float64{e.setE(clause.Expr{SQL: "ABS(?)", Vars: []interface{}{e.RawExpr()}})}
+func (e expr) Abs() Number[float64] {
+	return newNumber[float64](e.setE(clause.Expr{SQL: "ABS(?)", Vars: []interface{}{e.RawExpr()}}))
 }
 
 func (e expr) Null() AssignExpr {
@@ -238,19 +238,19 @@ func (e expr) SetCol(col Expr) AssignExpr {
 
 // ======================== operate columns ========================
 func (e expr) AddCol(col Expr) Float64 {
-	return Float64{e.setE(clause.Expr{SQL: "? + ?", Vars: []interface{}{e.RawExpr(), col.RawExpr()}})}
+	return newNumber[float64](e.setE(clause.Expr{SQL: "? + ?", Vars: []interface{}{e.RawExpr(), col.RawExpr()}}))
 }
 
 func (e expr) SubCol(col Expr) Float64 {
-	return Float64{e.setE(clause.Expr{SQL: "? - ?", Vars: []interface{}{e.RawExpr(), col.RawExpr()}})}
+	return newNumber[float64](e.setE(clause.Expr{SQL: "? - ?", Vars: []interface{}{e.RawExpr(), col.RawExpr()}}))
 }
 
 func (e expr) MulCol(col Expr) Float64 {
-	return Float64{e.setE(clause.Expr{SQL: "(?) * (?)", Vars: []interface{}{e.RawExpr(), col.RawExpr()}})}
+	return newNumber[float64](e.setE(clause.Expr{SQL: "(?) * (?)", Vars: []interface{}{e.RawExpr(), col.RawExpr()}}))
 }
 
 func (e expr) DivCol(col Expr) Float64 {
-	return Float64{e.setE(clause.Expr{SQL: "(?) / (?)", Vars: []interface{}{e.RawExpr(), col.RawExpr()}})}
+	return newNumber[float64](e.setE(clause.Expr{SQL: "(?) / (?)", Vars: []interface{}{e.RawExpr(), col.RawExpr()}}))
 }
 
 func (e expr) ConcatCol(cols ...Expr) String {
@@ -260,10 +260,10 @@ func (e expr) ConcatCol(cols ...Expr) String {
 		placeholders = append(placeholders, "?")
 		vars = append(vars, col.RawExpr())
 	}
-	return String{e.setE(clause.Expr{
-		SQL:  fmt.Sprintf("Concat(%s)", strings.Join(placeholders, ",")),
+	return newChars[string](e.setE(clause.Expr{
+		SQL:  fmt.Sprintf("CONCAT(%s)", strings.Join(placeholders, ",")),
 		Vars: vars,
-	})}
+	}))
 }
 
 // ======================== keyword ========================

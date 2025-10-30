@@ -2,6 +2,8 @@ package diy_method
 
 import (
 	"time"
+
+	gen "github.com/dieagenturverwaltung/gorm-gen"
 )
 
 type InsertMethod interface {
@@ -323,4 +325,13 @@ func (m *TestForWithMethod) IsEmpty() bool {
 
 func (m *TestForWithMethod) GetID() int {
 	return int(m.ID)
+}
+
+type TestSkipImpl interface {
+	// gen:skip
+	SkipMethod(id int) (gen.T, error)
+
+	// NoSkipMethod
+	// select * from users where id=@id
+	NoSkipMethod(id int) (gen.T, error)
 }
