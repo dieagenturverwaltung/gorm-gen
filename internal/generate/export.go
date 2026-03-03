@@ -223,9 +223,9 @@ func BuildDIYMethod(f *parser.InterfaceSet, s *QueryStructMeta, data []*Interfac
 // ParseStructRelationShip parse struct's relationship
 // No one should use it directly in project
 func ParseStructRelationShip(name string, relationship *schema.Relationships) []field.Relation {
-
+	var allRelations = append(append(append(relationship.HasOne, relationship.HasMany...), relationship.BelongsTo...), relationship.Many2Many...)
 	var relations []field.Relation
-	for _, relation := range relationship.Relations {
+	for _, relation := range allRelations {
 		cache := make(map[string][]field.Relation)
 		ship := pullRelationShip(cache, []*schema.Relationship{relation})
 		relations = append(relations, ship...)
