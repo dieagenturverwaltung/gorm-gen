@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
@@ -45,7 +46,7 @@ type SQLRows sql.Rows
 // RowsAffected execute affected raws
 type RowsAffected int64
 
-var concurrent = 1 // runtime.NumCPU()
+var concurrent = runtime.NumCPU()
 
 // NewGenerator create a new generator
 func NewGenerator(cfg Config) *Generator {
