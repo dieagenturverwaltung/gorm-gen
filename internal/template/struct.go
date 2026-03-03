@@ -35,7 +35,7 @@ const (
 	// TableGenericQueryIface table generic query interface
 	TableGenericQueryIface = defineGenericsDoInterface
 
-	//DefineGenericsMethodStruct generics do struct
+	// DefineGenericsMethodStruct generics do struct
 	DefineGenericsMethodStruct = `type {{.QueryStructName}}Do struct {gen.GenericsDo[I{{.ModelStructName}}Do, *{{.StructInfo.Package}}.{{.StructInfo.Type}}]}`
 
 	// DefineMethodStruct do struct
@@ -295,12 +295,6 @@ func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}) Session(sessio
 func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}) Model(m *{{$.StructInfo.Package}}.{{$.StructInfo.Type}}) *{{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx {
 	return &{{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx{a.db.Model(m).Association(a.Name())}
 }
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}) Unscoped() *{{$.QueryStructName}}{{$relationship}}{{$relation.Name}} {
-	a.db = a.db.Unscoped()
-	return &a
-}
-
 `
 	relationTx = `
 type {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx struct{ tx *gorm.Association }
