@@ -279,12 +279,12 @@ func pullRelationShip(cache map[string][]field.Relation, relationships []*schema
 		_, ok := cache[varType]
 		if !ok {
 			cache[varType] = []field.Relation{}
-			childRelations := pullRelationShip(cache, append(append(append(append(
-				make([]*schema.Relationship, 0, 4),
-				relationship.FieldSchema.Relationships.BelongsTo...),
-				relationship.FieldSchema.Relationships.HasOne...),
-				relationship.FieldSchema.Relationships.HasMany...),
-				relationship.FieldSchema.Relationships.Many2Many...),
+			childRelations := append(append(append(append(
+				make([]field.Relation, 0, 4),
+				pullRelationShip(cache, relationship.FieldSchema.Relationships.HasOne)...),
+				pullRelationShip(cache, relationship.FieldSchema.Relationships.HasMany)...),
+				pullRelationShip(cache, relationship.FieldSchema.Relationships.BelongsTo)...),
+				pullRelationShip(cache, relationship.FieldSchema.Relationships.Many2Many)...,
 			)
 			cache[varType] = childRelations
 		}

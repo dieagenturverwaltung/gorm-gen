@@ -223,13 +223,13 @@ func BuildDIYMethod(f *parser.InterfaceSet, s *QueryStructMeta, data []*Interfac
 // ParseStructRelationShip parse struct's relationship
 // No one should use it directly in project
 func ParseStructRelationShip(name string, relationship *schema.Relationships) []field.Relation {
-	relationships := append(append(append(append(
-		make([]*schema.Relationship, 0, 4),
-		relationship.BelongsTo...),
-		relationship.HasOne...),
-		relationship.HasMany...),
-		relationship.Many2Many...)
-	relations := pullRelationShip(make(map[string][]field.Relation), relationships)
+
+	var relations []field.Relation
+	for _, relation := range relationship.Relations {
+		cache := make(map[string][]field.Relation)
+		ship := pullRelationShip(cache, []*schema.Relationship{relation})
+		relations = append(relations, ship...)
+	}
 	remainingDepth := gen_config.QueryDepth
 	if overrideDepth, ok := gen_config.QueryDepthOverride[name]; ok {
 		remainingDepth = overrideDepth

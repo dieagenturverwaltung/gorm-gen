@@ -263,7 +263,16 @@ func (r *Relation) CopyWithDepth(depth int) *Relation {
 	if r == nil {
 		return nil
 	}
-	copyRelation := *r // shallow copy
+	copyRelation := Relation{
+		relationship: r.relationship,
+		fieldName:    r.fieldName,
+		fieldType:    r.fieldType,
+		fieldPath:    r.fieldPath,
+		fieldModel:   r.fieldModel,
+		unscoped:     r.unscoped,
+		offset:       r.offset,
+		limit:        r.limit,
+	}
 
 	// Deep copy slices
 	if r.conds != nil {
