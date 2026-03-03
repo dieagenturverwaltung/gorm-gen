@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/dieagenturverwaltung/gorm-gen/gen_config"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
@@ -269,14 +268,7 @@ func isStructType(data reflect.Value) bool {
 		(data.Kind() == reflect.Ptr && data.Elem().Kind() == reflect.Struct)
 }
 
-func pullRelationShip(name string, depth int, cache map[string][]field.Relation, relationships []*schema.Relationship) []field.Relation {
-	if overrideDepth, ok := gen_config.QueryDepthOverride[name]; ok {
-		if depth > overrideDepth {
-			return nil
-		}
-	} else if depth > gen_config.QueryDepth {
-		return nil
-	}
+func pullRelationShip(cache map[string][]field.Relation, relationships []*schema.Relationship) []field.Relation {
 	if len(relationships) == 0 {
 		return nil
 	}
@@ -284,14 +276,10 @@ func pullRelationShip(name string, depth int, cache map[string][]field.Relation,
 
 	for _, relationship := range relationships {
 		varType := strings.TrimLeft(relationship.Field.FieldType.String(), "[]*")
-		if _, ok := cache[varType]; !ok {
-			newCache := make(map[string][]field.Relation, len(cache)+1)
-			for k, v := range cache {
-				newCache[k] = v
-			}
-
-			newCache[varType] = []field.Relation{}
-			childRelations := pullRelationShip(name, depth+1, newCache, append(append(append(append(
+		_, ok := cache[varType]
+		if !ok {
+			cache[varType] = []field.Relation{}
+			childRelations := pullRelationShip(cache, append(append(append(append(
 				make([]*schema.Relationship, 0, 4),
 				relationship.FieldSchema.Relationships.BelongsTo...),
 				relationship.FieldSchema.Relationships.HasOne...),

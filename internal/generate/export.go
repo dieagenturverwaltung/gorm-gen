@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/dieagenturverwaltung/gorm-gen/gen_config"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 	"gorm.io/gorm/utils/tests"
@@ -228,7 +229,20 @@ func ParseStructRelationShip(name string, relationship *schema.Relationships) []
 		relationship.HasOne...),
 		relationship.HasMany...),
 		relationship.Many2Many...)
-	return pullRelationShip(name, 0, make(map[string][]field.Relation), relationships)
+	relations := pullRelationShip(make(map[string][]field.Relation), relationships)
+	remainingDepth := gen_config.QueryDepth
+	if overrideDepth, ok := gen_config.QueryDepthOverride[name]; ok {
+		remainingDepth = overrideDepth
+	}
+
+	var newRelations []field.Relation
+	for _, relation := range relations {
+		depth := relation.CopyWithDepth(remainingDepth)
+		if depth != nil {
+			newRelations = append(newRelations, *depth)
+		}
+	}
+	return newRelations
 }
 
 // GetStructNames get struct names from base structs

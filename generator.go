@@ -9,13 +9,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"text/template"
 
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/imports"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
@@ -45,7 +45,7 @@ type SQLRows sql.Rows
 // RowsAffected execute affected raws
 type RowsAffected int64
 
-var concurrent = runtime.NumCPU()
+var concurrent = 1 // runtime.NumCPU()
 
 // NewGenerator create a new generator
 func NewGenerator(cfg Config) *Generator {
@@ -312,6 +312,7 @@ func (g *Generator) generateQueryFile() (err error) {
 		pool.Wait()
 		go func(info *genInfo) {
 			defer pool.Done()
+			g.info(fmt.Sprintf("start generate query file: %s%s%s.gen.go", g.OutPath, string(os.PathSeparator), info.FileName))
 			err := g.generateSingleQueryFile(info)
 			if err != nil {
 				errChan <- err

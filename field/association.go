@@ -257,6 +257,54 @@ func (r *Relation) StructFieldInit() string {
 	return initStr
 }
 
+// CopyWithDepth creates a deep copy of the Relation with childRelations limited to the specified depth.
+// If depth <= 0, childRelations will be nil in the copy. All slices are deep-copied.
+func (r *Relation) CopyWithDepth(depth int) *Relation {
+	if r == nil {
+		return nil
+	}
+	copyRelation := *r // shallow copy
+
+	// Deep copy slices
+	if r.conds != nil {
+		copyRelation.conds = make([]Expr, len(r.conds))
+		copy(copyRelation.conds, r.conds)
+	}
+	if r.selects != nil {
+		copyRelation.selects = make([]Expr, len(r.selects))
+		copy(copyRelation.selects, r.selects)
+	}
+	if r.order != nil {
+		copyRelation.order = make([]Expr, len(r.order))
+		copy(copyRelation.order, r.order)
+	}
+	if r.clauses != nil {
+		copyRelation.clauses = make([]clause.Expression, len(r.clauses))
+		copy(copyRelation.clauses, r.clauses)
+	}
+	if r.scopes != nil {
+		copyRelation.scopes = make([]relationScope, len(r.scopes))
+		copy(copyRelation.scopes, r.scopes)
+	}
+	if r.joins != nil {
+		copyRelation.joins = make([]RelationJoin, len(r.joins))
+		copy(copyRelation.joins, r.joins)
+	}
+
+	copyRelation.childRelations = nil
+	// Deep copy childRelations with limited depth
+	if depth > 0 && r.childRelations != nil {
+		for _, child := range r.childRelations {
+			childCopy := child.CopyWithDepth(depth - 1)
+			if childCopy != nil {
+				copyRelation.childRelations = append(copyRelation.childRelations, *childCopy)
+			}
+		}
+	}
+
+	return &copyRelation
+}
+
 func wrapPath(root string, rs []Relation) []Relation {
 	result := make([]Relation, len(rs))
 	for i, r := range rs {
