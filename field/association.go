@@ -249,10 +249,28 @@ func (r *Relation) StructField() (fieldStr string) {
 
 // StructFieldInit return field initialize code
 func (r *Relation) StructFieldInit() string {
+	initStr := ""
+	switch r.relationship {
+	case HasOne, BelongsTo:
+		initStr += fmt.Sprintf("HasOneField: field.NewHasOneField[%s](db, %q, %q),\n", r.fieldType, r.fieldPath, r.fieldType)
+	case HasMany, Many2Many:
+		initStr += fmt.Sprintf("HasManyField: field.NewHasManyField[%s](db, %q, %q),\n", r.fieldType, r.fieldPath, r.fieldType)
+	default:
+	}
+
+	for _, relation := range r.childRelations {
+		initStr += relation.fieldName + ": struct {\nfield.RelationField\n" + strings.TrimSpace(relation.StructField()) + "}"
+		initStr += "{\n" + relation.StructFieldInitSub() + "},\n"
+	}
+	return initStr
+}
+
+// StructFieldInitSub return field initialize code
+func (r *Relation) StructFieldInitSub() string {
 	initStr := fmt.Sprintf("RelationField: field.NewRelation(%q, %q),\n", r.fieldPath, r.fieldType)
 	for _, relation := range r.childRelations {
 		initStr += relation.fieldName + ": struct {\nfield.RelationField\n" + strings.TrimSpace(relation.StructField()) + "}"
-		initStr += "{\n" + relation.StructFieldInit() + "},\n"
+		initStr += "{\n" + relation.StructFieldInitSub() + "},\n"
 	}
 	return initStr
 }

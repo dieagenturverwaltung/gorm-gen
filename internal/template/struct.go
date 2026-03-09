@@ -59,8 +59,6 @@ const (
 			{{- if .ColumnName -}}_{{$.QueryStructName}}.{{.Name}} = field.New{{.GenType}}(tableName, "{{.ColumnName}}"){{- end -}}
 		{{- else -}}
 			_{{$.QueryStructName}}.{{.Relation.Name}} = {{$.QueryStructName}}{{.Relation.RelationshipName}}{{.Relation.Name}}{
-				db: db.Session(&gorm.Session{}),
-
 				{{.Relation.StructFieldInit}}
 			}
 		{{end}}
@@ -119,15 +117,15 @@ func ({{.S}} *{{.QueryStructName}}) updateTableName(table string) *{{.QueryStruc
 	cloneMethod = `
 func ({{.S}} {{.QueryStructName}}) clone(db *gorm.DB) {{.QueryStructName}} {
 	{{.S}}.{{.QueryStructName}}Do.ReplaceConnPool(db.Statement.ConnPool){{range .Fields }}{{if .IsRelation}}
-  {{$.S}}.{{.Relation.Name}}.db = db.Session(&gorm.Session{Initialized: true})
-  {{$.S}}.{{.Relation.Name}}.db.Statement.ConnPool = db.Statement.ConnPool{{end}}{{end}}
+  {{$.S}}.{{.Relation.Name}}.DB = db.Session(&gorm.Session{Initialized: true})
+  {{$.S}}.{{.Relation.Name}}.DB.Statement.ConnPool = db.Statement.ConnPool{{end}}{{end}}
 	return {{.S}}
 }
 `
 	replaceMethod = `
 func ({{.S}} {{.QueryStructName}}) replaceDB(db *gorm.DB) {{.QueryStructName}} {
 	{{.S}}.{{.QueryStructName}}Do.ReplaceDB(db){{range .Fields}}{{if .IsRelation}}
-  {{$.S}}.{{.Relation.Name}}.db = db.Session(&gorm.Session{}){{end}}{{end}}
+  {{$.S}}.{{.Relation.Name}}.DB = db.Session(&gorm.Session{}){{end}}{{end}}
 	return {{.S}}
 }
 `
@@ -262,82 +260,10 @@ type I{{.ModelStructName}}Do interface {
 const (
 	relationStruct = `
 type {{$.QueryStructName}}{{$relationship}}{{$relation.Name}} struct{
-	db *gorm.DB
-	
-	field.RelationField
+	*field.{{if eq $relationship "HasMany" "ManyToMany"}}HasManyField{{else}}HasOneField{{end}}[{{$relation.Type}}]
 	
 	{{$relation.StructField}}
 }
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}) Where(conds ...field.Expr) *{{$.QueryStructName}}{{$relationship}}{{$relation.Name}} {
-	if len(conds) == 0 {
-		return &a
-	}
-
-	exprs := make([]clause.Expression, 0, len(conds))
-	for _, cond := range conds {
-		exprs = append(exprs, cond.BeCond().(clause.Expression))
-	}
-	a.db = a.db.Clauses(clause.Where{Exprs: exprs})
-	return &a
-}
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}) WithContext(ctx context.Context) *{{$.QueryStructName}}{{$relationship}}{{$relation.Name}} {
-	a.db = a.db.WithContext(ctx)
-	return &a
-}
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}) Session(session *gorm.Session) *{{$.QueryStructName}}{{$relationship}}{{$relation.Name}} {
-	a.db = a.db.Session(session)
-	return &a
-}
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}) Model(m *{{$.StructInfo.Package}}.{{$.StructInfo.Type}}) *{{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx {
-	return &{{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx{a.db.Model(m).Association(a.Name())}
-}
 `
-	relationTx = `
-type {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx struct{ tx *gorm.Association }
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Find() (result {{if eq $relationship "HasMany" "ManyToMany"}}[]{{end}}*{{$relation.Type}}, err error) {
-	return result, a.tx.Find(&result)
-}
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Append(values ...*{{$relation.Type}}) (err error) {
-	targetValues := make([]interface{}, len(values))
-	for i, v := range values {
-		targetValues[i] = v
-	}
-	return a.tx.Append(targetValues...)
-}
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Replace(values ...*{{$relation.Type}}) (err error) {
-	targetValues := make([]interface{}, len(values))
-	for i, v := range values {
-		targetValues[i] = v
-	}
-	return a.tx.Replace(targetValues...)
-}
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Delete(values ...*{{$relation.Type}}) (err error) {
-	targetValues := make([]interface{}, len(values))
-	for i, v := range values {
-		targetValues[i] = v
-	}
-	return a.tx.Delete(targetValues...)
-}
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Clear() error {
-	return a.tx.Clear()
-}
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Count() int64 {
-	return a.tx.Count()
-}
-
-func (a {{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx) Unscoped() *{{$.QueryStructName}}{{$relationship}}{{$relation.Name}}Tx {
-	a.tx = a.tx.Unscoped()
-	return &a
-}
-`
+	relationTx = ``
 )

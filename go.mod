@@ -1,6 +1,6 @@
 module github.com/dieagenturverwaltung/gorm-gen
 
-go 1.18
+go 1.24.3
 
 require (
 	golang.org/x/exp v0.0.0-20240112132812-db7319d0e0e3
